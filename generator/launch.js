@@ -13,19 +13,50 @@ process.argv.forEach(function(val, index, array) {
 
 var __analyze = require("./analyze.js");
 var __fs = require('fs');
+var __replace = require('./replace.js');
 if(args.har != null){
-	start(__fs.readFileSync(args.har,{
+	analyze(__fs.readFileSync(args.har,{
 		"encoding":"utf8"
 	}));
 }else{
 	var exec = require('child_process').exec;
 	exec('phantomjs ./lib/netsniff.js '+args.url+' '+args.delay, function(error, stdout, stderr) {
-		start(stdout);
+		analyze(stdout);
 	});
 }
 
-function start(har){
-	__analyze(JSON.parse(har),args.output);
+function removeItem(arr, item) {
+   var i;
+   while((i = arr.indexOf(item)) !== -1) {
+     arr.splice(i, 1);
+   }
+}
+
+function end() {
+	var __exec = require('child_process').exec;
+	var __open = require("open");
+
+	__exec("http-server " + args.output + " -c-1 -i -p 8887");
+	setTimeout(function() {
+		__open("http://127.0.0.1:8887");
+	}, 1000);
+
+}
+
+function analyze(har){
+	har = JSON.parse(har);
+	var entries = har['log']['entries'];
+	entries.forEach(function(entry){
+		if(entry['response']['status'] == "301"){
+			removeItem(entries,entry);
+		}
+	});
+	__analyze(har,args.output,replace);
+}
+
+function replace(diffList){
+	__replace(args.output,diffList);
+	end();
 }
 
 

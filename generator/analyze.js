@@ -5,27 +5,40 @@ var __request = require("request").defaults({
 
 var mkdirp = require('mkdirp');
 
-var diff = {
-	
-};
+var diffList = [];
 
 function getFilePath(contentType,url){
-	
+
 	var filename = url.substring(url.lastIndexOf("/")+1);
-	return ({
-		"application/javascript":"/js/",
-		"text/javascript":"/js/",
-		"text/css":"/css/",
-		"image/png":"/images/",
-		"image/jpg":"/images/",
-		"image/jpeg":"/images/",
-		"image/gif":"/images/",
-	})[contentType]+filename;
+	if(filename==""){
+		filename = "index.html";
+	}
+	var suffix = filename.substring(filename.lastIndexOf("."));
+	
+	var filepath = ({
+		".js":"js/",
+		".css":"",
+		".html":"",
+		".png":"images/",
+		".jpg":"images/",
+		".jpeg":"images/",
+		".gif":"images/",
+		".swf":"swf/"
+	})[suffix];
+	if(typeof filepath != "undefined"){
+		diffList.push({
+			"filename":filename,
+			"replace":filepath+filename
+		});
+	}
+	
+	
+	return "/"+filepath+filename;
 }
 
-module.exports = function(har, output) {
+module.exports = function(har, output,callback) {
 	var index = 0;
-	var fetchUrl = har['log']['pages'][0]['id'];
+	var fetchUrl = har['log']['entries'][0]['request']['url'];
 	var urlPath = fetchUrl.substring(0,fetchUrl.lastIndexOf("/"));
 	
 	var entries = har['log']['entries'];
@@ -37,18 +50,20 @@ module.exports = function(har, output) {
 		var url = request.url.replace(/\?.*/g, "");
 		var contentType = response['content']['mimeType'];
 		var filepath;
-		
+		/*
 		if(url.indexOf(urlPath) !== -1){
-			filepath = url.replace(urlPath, "");
-			
-		}else{
+					filepath = url.replace(urlPath, "");
+					
+				}else{*/
+		
 			filepath = getFilePath(contentType,url);
-		}
+		//}
 		if(filepath == "/" && contentType =="text/html"){
 			filepath = "/index.html"
 		}
 		
 		var outpath = output + filepath;
+		console.info(outpath);
 		mkdirp.sync(outpath.substring(0, outpath.lastIndexOf("/")));
 		request.headers.forEach(function(h) {
 			if (['Last-Modified', 'ETag', 'Expires', 'Cache-Control'].indexOf(h['name']) !== -1) {
@@ -56,10 +71,13 @@ module.exports = function(har, output) {
 			}
 
 		});
+		/*
 		if(response['content']['text']){
-			__fs.writeFileSync(outpath,response['content']['text']);
-			checkDone();
-		}else{
+					
+					__fs.writeFileSync(outpath,response['content']['text']);
+					checkDone();
+				}else{*/
+		
 			__request({
 				url : url,
 				headers : headers
@@ -67,28 +85,19 @@ module.exports = function(har, output) {
 				checkDone();
 			}).pipe(__fs.createWriteStream(outpath));
 
-		}
+		//}
 		
 	});
 
 	function checkDone() {
 		index++;
 		if (index == entries.length) {
-			end();
+			callback(diffList);
 		}
 
 	}
 
-	function end() {
-		var __exec = require('child_process').exec;
-		var __open = require("open");
-
-		__exec("http-server " + output + " -c-1 -i -p 8887");
-		setTimeout(function() {
-			__open("http://127.0.0.1:8887");
-		}, 1000);
-
-	}
+	
 
 }
 
