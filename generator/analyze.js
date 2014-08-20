@@ -16,6 +16,9 @@ function getFilePath(contentType,url){
 	var suffix = filename.substring(filename.lastIndexOf("."));
 	
 	var filepath = ({
+		".json":"data/",
+		".plist":"data/",
+		".mp3":"mp3/",
 		".js":"js/",
 		".css":"",
 		".html":"",
